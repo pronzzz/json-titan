@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON-Titan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            /* One UI Inspired Dark Palette */
+            --bg-primary: #000000;
+            --bg-secondary: #121212;
+            --surface-color: #1e1e1e;
+            --bg-hover: #2c2c2c;
+
+            --text-primary: #ffffff;
+            --text-secondary: #999999;
+            --text-tertiary: #666666;
+
+            --border-color: #333333;
+            --border-highlight: #555555;
+
+            /* Syntax Highlighting */
+            --json-key: #d4a5ff;
+            /* Soft Purple */
+            --json-string: #98ff98;
+            /* Mint Green */
+            --json-number: #ffb347;
+            /* Pastel Orange */
+            --json-boolean: #5dade2;
+            /* Soft Blue */
+            --json-null: #aab7b8;
+            /* Gray */
+
+            --accent-color: #3e82f7;
+            /* Samsung Blue-ish */
+            --radius-xl: 28px;
+            /* One UI Squircle/Round */
+            --radius-lg: 20px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+        }
+
+        .light-mode {
+            --bg-primary: #f2f2f7;
+            --bg-secondary: #ffffff;
+            --surface-color: #ffffff;
+            --bg-hover: #f0f0f0;
+
+            --text-primary: #000000;
+            --text-secondary: #6e6e73;
+            --text-tertiary: #8e8e93;
+
+            --border-color: #e5e5ea;
+            --border-highlight: #d1d1d6;
+
+            --json-key: #8e44ad;
+            --json-string: #27ae60;
+            --json-number: #d35400;
+            --json-boolean: #2980b9;
+            --json-null: #7f8c8d;
+        }
+
+        html,
+        body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            /* Prevent global scroll */
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* Font overrides for code elements */
+        .font-mono {
+            font-family: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+        }
+
+        /* Glassmorphism Utilities */
+        .glass-panel {
+            background: rgba(var(--surface-color), 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .row-hover:hover {
+            background-color: var(--bg-hover);
+            border-radius: var(--radius-sm);
+        }
+
+        .json-key {
+            color: var(--json-key);
+        }
+
+        .json-string {
+            color: var(--json-string);
+        }
+
+        .json-number {
+            color: var(--json-number);
+        }
+
+        .json-boolean {
+            color: var(--json-boolean);
+        }
+
+        .json-null {
+            color: var(--json-null);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 99px;
+            border: 2px solid var(--bg-primary);
+            /* Padding effect */
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--border-highlight);
+        }
+
+        /* One UI Button Styles */
+        .btn-pill {
+            border-radius: 99px;
+            padding: 0.5rem 1.25rem;
+            font-weight: 600;
+            transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .btn-pill:active {
+            scale: 0.95;
+        }
+
+        .input-pill {
+            border-radius: 99px;
+            padding: 0.5rem 1rem;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            transition: border-color 0.2s;
+        }
+
+        .input-pill:focus {
+            border-color: var(--accent-color);
+            outline: none;
+        }
+
+        /* Card Style */
+        .card-panel {
+            border-radius: var(--radius-xl);
+            background-color: var(--bg-secondary);
+            /* border: 1px solid var(--border-color); */
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .active-row {
+            background-color: rgba(62, 130, 247, 0.2);
+            /* accent color semi-transparent */
+            border-left: 3px solid var(--accent-color);
+        }
+    </style>
+</head>
+
+<body class="h-screen w-screen flex flex-col overflow-hidden antialiased transition-colors duration-200">
+
+    <!-- Floating Header -->
+    <header class="shrink-0 z-20 px-6 pt-6 pb-2">
+        <div class="glass-panel rounded-full h-16 flex items-center justify-between px-6 shadow-lg"
+            style="background-color: var(--surface-color);">
+
+            <!-- Branding -->
+            <div class="flex items-center gap-4">
+                <div
+                    class="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500 flex items-center justify-center shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" viewBox="0 0 20 20"
+                        fill="currentColor">
+                        <path fill-rule="evenodd"
+                            d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L7.586 10 5.293 7.707a1 1 0 010-1.414zM11 12a1 1 0 100 2h3a1 1 0 100-2h-3z"
+                            clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <h1
+                    class="text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-blue-400">
+                    JSON Titan</h1>
+
+                <div class="h-6 w-px bg-gray-700 mx-2"></div>
+
+                <input type="text" id="search-input" placeholder="Search keys or values..."
+                    class="input-pill text-sm w-64 text-gray-300 placeholder-gray-500"
+                    style="background-color: var(--bg-primary); color: var(--text-primary); border-color: var(--border-color);"
+                    disabled>
+            </div>
+
+            <!-- Meta & Controls -->
+            <div class="flex items-center gap-3">
+                <span id="file-name"
+                    class="text-xs font-mono px-3 py-1 rounded-full bg-gray-800/50 hidden border border-gray-700"
+                    style="color: var(--text-secondary);"></span>
+                <span id="node-count" class="text-xs font-bold hidden mr-2" style="color: var(--accent-color);">0
+                    nodes</span>
+
+                <div class="flex gap-1" id="tree-controls">
+                    <button id="expand-all-btn"
+                        class="btn-pill text-xs border border-gray-700 hover:bg-gray-800 transition-colors px-3 disabled:opacity-50"
+                        style="color: var(--text-primary); border-color: var(--border-color);" disabled>
+                        Expand All
+                    </button>
+                    <button id="collapse-all-btn"
+                        class="btn-pill text-xs border border-gray-700 hover:bg-gray-800 transition-colors px-3 disabled:opacity-50"
+                        style="color: var(--text-primary); border-color: var(--border-color);" disabled>
+                        Collapse All
+                    </button>
+                    <button id="export-btn"
+                        class="btn-pill text-xs border border-gray-700 hover:bg-gray-800 transition-colors px-3 disabled:opacity-50"
+                        style="color: var(--text-primary); border-color: var(--border-color);" disabled>
+                        Export
+                    </button>
+                </div>
+
+                <button id="diff-mode-btn"
+                    class="btn-pill text-xs border border-gray-700 hover:bg-gray-800 transition-colors px-3 disabled:opacity-50"
+                    style="color: var(--text-primary); border-color: var(--border-color);">
+                    Diff Mode
+                </button>
+
+                <button id="console-btn"
+                    class="btn-pill text-xs border border-gray-700 hover:bg-gray-800 transition-colors"
+                    style="color: var(--text-primary); border-color: var(--border-color);">
+                    JQ Console
+                </button>
+                <button id="density-btn"
+                    class="btn-pill text-xs border border-gray-700 hover:bg-gray-800 transition-colors"
+                    style="color: var(--text-primary); border-color: var(--border-color);">
+                    Compact
+                </button>
+
+                <button id="theme-btn"
+                    class="btn-pill text-xs border border-gray-700 hover:bg-gray-800 transition-colors"
+                    style="color: var(--text-primary); border-color: var(--border-color);">
+                    Contrast
+                </button>
+                <button id="load-sample-btn"
+                    class="btn-pill text-xs text-white shadow-lg transform hover:-translate-y-0.5"
+                    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                    Load Sample
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 relative overflow-hidden p-6 pt-2" id="main-container">
+
+        <!-- Main Card Container -->
+        <div class="card-panel w-full h-full relative overflow-hidden flex flex-col shadow-2xl" id="content-card"
+            style="background-color: var(--bg-secondary);">
+
+            <!-- Drag & Drop Zone Overlay -->
+            <div id="drop-zone"
+                class="absolute inset-0 flex flex-col items-center justify-center z-50 transition-opacity opacity-100"
+                style="background-color: var(--bg-secondary); border-radius: var(--radius-xl);">
+
+                <div class="border-2 border-dashed rounded-3xl p-16 text-center transition-all cursor-pointer hover:scale-105 duration-300 group"
+                    id="drop-area"
+                    style="border-color: var(--border-color); background: linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0));">
+                    <div
+                        class-="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-gray-700 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-purple-400" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                    </div>
+                    <h2 class="text-3xl font-bold mb-3 tracking-tight" style="color: var(--text-primary);">Drop JSON
+                        File</h2>
+                    <p class="text-base mb-6" style="color: var(--text-secondary);">or click to browse local files</p>
+                    <div
+                        class="text-xs px-4 py-2 rounded-full bg-gray-900/50 inline-block border border-gray-800 text-gray-500">
+                        Supports standard .json, .txt, .log
+                    </div>
+                    <input type="file" id="file-input" class="hidden" accept=".json,.txt,.log">
+                </div>
+            </div>
+
+            <!-- Diff View Container (Hidden By Default) -->
+            <div id="diff-container" class="absolute inset-0 z-10 hidden flex">
+                <!-- Left Pane -->
+                <div class="flex-1 flex flex-col border-r relative" style="border-color: var(--border-color);">
+                    <div class="h-10 border-b flex items-center px-4 justify-between bg-opacity-50"
+                        style="border-color: var(--border-color); background-color: var(--surface-color);">
+                        <span class="text-xs font-bold text-gray-400">Original (Left)</span>
+                        <span id="left-file-name" class="text-xs font-mono text-gray-500"></span>
+                    </div>
+
+                    <div class="flex-1 relative overflow-hidden" id="left-panel-content">
+                        <!-- Left Drop -->
+                        <div id="left-drop"
+                            class="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors z-20">
+                            <span class="text-2xl mb-2">📄</span>
+                            <span class="text-sm font-bold text-gray-400">Drop Original File</span>
+                            <input type="file" id="left-input" class="hidden">
+                        </div>
+                        <!-- Left List -->
+                        <div id="left-list-container" class="absolute inset-0 overflow-auto hidden custom-scroll"></div>
+                    </div>
+                </div>
+
+                <!-- Right Pane -->
+                <div class="flex-1 flex flex-col relative">
+                    <div class="h-10 border-b flex items-center px-4 justify-between bg-opacity-50"
+                        style="border-color: var(--border-color); background-color: var(--surface-color);">
+                        <span class="text-xs font-bold text-gray-400">Modified (Right)</span>
+                        <span id="right-file-name" class="text-xs font-mono text-gray-500"></span>
+                    </div>
+
+                    <div class="flex-1 relative overflow-hidden" id="right-panel-content">
+                        <!-- Right Drop -->
+                        <div id="right-drop"
+                            class="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-colors z-20">
+                            <span class="text-2xl mb-2">📄</span>
+                            <span class="text-sm font-bold text-gray-400">Drop Modified File</span>
+                            <input type="file" id="right-input" class="hidden">
+                        </div>
+                        <!-- Right List -->
+                        <div id="right-list-container" class="absolute inset-0 overflow-auto hidden custom-scroll">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Valid List Container -->
+            <div id="list-container" class="h-full w-full overflow-y-auto hidden pl-4 pt-4 pr-2 pb-20 scroll-smooth">
+                <!-- Content -->
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="loader"
+                class="absolute bottom-6 right-6 rounded-full px-6 py-3 shadow-2xl hidden flex items-center gap-3 border border-gray-700/50 backdrop-blur-md"
+                style="background-color: rgba(30,30,30,0.9);">
+                <div class="animate-spin h-5 w-5 border-2 border-purple-500 border-t-transparent rounded-full"></div>
+                <span class="text-sm font-medium" style="color: var(--text-primary);"
+                    id="loader-text">Processing...</span>
+            </div>
+
+        </div>
+
+        <!-- Chart Modal -->
+        <div id="chart-modal"
+            class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div class="card-panel w-11/12 max-w-4xl h-5/6 flex flex-col p-6 relative">
+                <button id="close-chart-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                <h2 class="text-xl font-bold mb-4" id="chart-title" style="color: var(--text-primary);">Data
+                    Visualization</h2>
+                <div class="flex-1 relative bg-gray-900 rounded-xl p-4 overflow-hidden">
+                    <canvas id="chart-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- JQ Console Drawer -->
+        <div id="console-drawer"
+            class="fixed inset-x-0 bottom-0 z-40 bg-gray-900 border-t border-gray-700 shadow-2xl transform translate-y-full transition-transform duration-300 flex flex-col"
+            style="height: 40vh;">
+            <div class="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
+                <span class="text-sm font-bold text-gray-300">JQ Console</span>
+                <button id="close-console-btn" class="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <div class="flex-1 flex flex-col p-4 overflow-hidden">
+                <div class="flex gap-2 mb-2">
+                    <span class="text-purple-400 font-mono py-1">jq></span>
+                    <input type="text" id="jq-input"
+                        class="flex-1 bg-transparent border-none text-white font-mono focus:ring-0"
+                        placeholder=".users[] | select(.age > 20)" autocomplete="off">
+                    <button id="run-jq-btn"
+                        class="btn-pill text-xs bg-purple-600 text-white hover:bg-purple-700">Run</button>
+                </div>
+                <div class="flex-1 bg-black rounded p-2 overflow-auto font-mono text-xs text-green-400" id="jq-output">
+                    // Output...
+                </div>
+            </div>
+        </div>
+
+        ```
+    </main>
+
+    <script>
+        window.onerror = function (msg, url, line, col, error) {
+            alert("Error: " + msg + "\nLine: " + line + "\nCol: " + col);
+            return false;
+        };
+        // --- INLINE WORKER CODE (To support file:// protocol and single-file distribution) ---
+        const workerCode = `
+            let flatTree = []; // Single mode tree
+            let visibleRows = []; 
+            let searchQuery = '';
+            let rootData = null; 
+            
+            // Diff Mode State
+            let mode = 'single'; // 'single' | 'diff'
+            let leftData = null;
+            let rightData = null;
+            let leftFlatTree = [];
+            let rightFlatTree = [];
+            let leftVisibleRows = [];
+            let rightVisibleRows = [];
+
+            function traverse(key, value, depth, parentID, tree, diffStatus = 'unchanged') {
+                const currentId = tree.length + 1;
+                const isObject = value !== null && typeof value === 'object';
+                const isArray = Array.isArray(value);
+                
+                let typeStr = 'string';
+                let displayValue = value;
+                let isChartable = false;
+
+                if (value === null) typeStr = 'null';
+                else if (isArray) {
+                    typeStr = 'array';
+                    if (value.length > 1 && value.length < 10000) {
+                         isChartable = value.every(v => typeof v === 'number');
+                    }
+                }
+                else if (isObject) typeStr = 'object';
+                else if (typeof value === 'number') typeStr = 'number';
+                else if (typeof value === 'boolean') typeStr = 'boolean';
+
+                if (isObject) displayValue = isArray ? '[' : '{';
+
+                const node = {
+                    id: currentId,
+                    depth: depth,
+                    key: key,
+                    value: displayValue,
+                    type: typeStr,
+                    expanded: true,
+                    parentID: parentID,
+                    hasChildren: isObject && Object.keys(value).length > 0,
+                    isChartable: isChartable,
+                    chartData: isChartable ? value : null,
+                    diffStatus: diffStatus // 'unchanged', 'added', 'removed', 'modified'
+                };
+                
+                tree.push(node);
+
+                if (isObject) {
+                    const entries = Object.entries(value);
+                    for (const [k, v] of entries) {
+                        traverse(isArray ? null : k, v, depth + 1, currentId, tree, diffStatus);
+                    }
+                }
+            }
+
+            function processData(data) {
+                mode = 'single';
+                rootData = data;
+                flatTree = [];
+                traverse(null, data, 0, 0, flatTree);
+                recomputeVisibleRows();
+                postUpdate();
+            }
+
+            // Diff Logic
+            function processDiff(left, right) {
+                 mode = 'diff';
+                 leftData = left;
+                 rightData = right;
+                 leftFlatTree = [];
+                 rightFlatTree = [];
+                 
+                 // We need a synchronized traversal to mark diffs
+                 // This is complex for a flat tree generator.
+                 // Strategy:
+                 // 1. Traverse both simultaneously.
+                 // 2. Push to leftTree / rightTree as needed.
+                 
+                 traverseDiff(null, left, right, 0, 0, 0);
+                 
+                 recomputeVisibleRowsDiff();
+                 postUpdateDiff();
+            }
+
+            function traverseDiff(key, lVal, rVal, depth, pIdLeft, pIdRight) {
+                // Determine Status
+                // If lVal is undefined, it's added (only in Right) -> Handled by parent iteration usually?
+                // Actually, the recursion needs to handle the union of keys.
+                
+                const isLObj = lVal !== null && typeof lVal === 'object';
+                const isRObj = rVal !== null && typeof rVal === 'object';
+                
+                // Base Node Creation Helpers
+                const createNode = (k, v, d, pid, tree, status) => {
+                     const id = tree.length + 1;
+                     const isObj = v !== null && typeof v === 'object';
+                     const isArr = Array.isArray(v);
+                     let type = 'string';
+                     if(v===null) type='null';
+                     else if(isArr) type='array';
+                     else if(isObj) type='object';
+                     else if(typeof v==='number') type='number';
+                     else if(typeof v==='boolean') type='boolean';
+                     
+                     let disp = v;
+                     if(isObj) disp = isArr ? '[' : '{';
+                     
+                     tree.push({
+                         id, depth: d, key: k, value: disp, type, 
+                         expanded: true, parentID: pid, 
+                         hasChildren: isObj && Object.keys(v).length > 0,
+                         diffStatus: status
+                     });
+                     return id;
+                };
+
+                // This function is assumed to be called when ONE of them exists, or BOTH exist (and key matches).
+                // But wait, if keys differ, how do we align?
+                // Standard approach: 
+                // 1. Get union of keys.
+                // 2. Sort keys.
+                // 3. Iterate keys.
+                
+                // But first we must create the "Container" nodes for lVal and rVal if they exist.
+                
+                let lId = 0;
+                let rId = 0;
+                
+                // Check equality for primitives
+                let status = 'unchanged';
+                // Simple deep equal check for coloring the *container*? 
+                // Usually we only mark the value as modified.
+                
+                // If both are primitives and differ:
+                if (!isLObj && !isRObj && lVal !== rVal) status = 'modified';
+                // If one is obj and other is prim:
+                if (isLObj !== isRObj) status = 'modified';
+                
+                if (lVal !== undefined) lId = createNode(key, lVal, depth, pIdLeft, leftFlatTree, status === 'modified' ? 'modified' : 'unchanged');
+                if (rVal !== undefined) rId = createNode(key, rVal, depth, pIdRight, rightFlatTree, status === 'modified' ? 'modified' : (status === 'unchanged' ? 'unchanged' : 'added')); 
+                // status logic above is slightly flawed. 
+                // If lVal exists and rVal exists, they match keys. 
+                
+                // If both are objects, recurse
+                if (isLObj && isRObj) {
+                    const lKeys = Object.keys(lVal);
+                    const rKeys = Object.keys(rVal);
+                    const allKeys = new Set([...lKeys, ...rKeys]);
+                    const sorted = Array.from(allKeys).sort();
+                    
+                    const isArr = Array.isArray(lVal); // Assume both are same type if valid JSON, or handled by type check diff
+                    
+                    for (const k of sorted) {
+                        const lChild = lVal[k];
+                        const rChild = rVal[k];
+                        
+                        if (lChild !== undefined && rChild !== undefined) {
+                            // In both
+                            traverseDiff(isArr ? null : k, lChild, rChild, depth + 1, lId, rId);
+                        } else if (lChild !== undefined) {
+                            // Removed (Only in Left)
+                            // We traverse Left recursively as 'removed', Right gets nothing (gap? or just omit?)
+                            // Standard Diff View: Show in Left (Red). Right side empty.
+                            // We just traverse Left normally but mark all as 'removed'.
+                            recursiveAdd(isArr ? null : k, lChild, depth + 1, lId, leftFlatTree, 'removed');
+                        } else {
+                            // Added (Only in Right)
+                            recursiveAdd(isArr ? null : k, rChild, depth + 1, rId, rightFlatTree, 'added');
+                        }
+                    }
+                } else if (isLObj) {
+                     // Left is Obj, Right is Prim (Modified). 
+                     // We already created the nodes. 
+                     // Left needs to show its children as 'removed' (or just children of modified parent?)
+                     // Actually key collision: Key exists in both. Value changed.
+                     // Left value is {...}, Right value is 123.
+                     // Left shows {...}, Right shows 123.
+                     // Children of Left are implicitly removed? Yes.
+                     recursiveAddChildren(lVal, depth + 1, lId, leftFlatTree, 'removed');
+                } else if (isRObj) {
+                     // Left Prim, Right Obj.
+                     recursiveAddChildren(rVal, depth + 1, rId, rightFlatTree, 'added');
+                }
+            }
+            
+            function recursiveAdd(key, val, depth, pid, tree, status) {
+                 const id = tree.length + 1;
+                 const isObj = val !== null && typeof val === 'object';
+                 const isArr = Array.isArray(val);
+                 let type = 'string';
+                 if(val===null) type='null';
+                 else if(isArr) type='array';
+                 else if(isObj) type='object';
+                 else if(typeof val==='number') type='number';
+                 else if(typeof val==='boolean') type='boolean';
+                 
+                 let disp = val;
+                 if(isObj) disp = isArr ? '[' : '{';
+                 
+                 // For array keys in recursion?
+                 tree.push({
+                     id, depth, key, value: disp, type, 
+                     expanded: true, parentID: pid, hasChildren: isObj && Object.keys(val).length > 0,
+                     diffStatus: status 
+                 });
+                 
+                 if (isObj) {
+                      for (const [k, v] of Object.entries(val)) {
+                          recursiveAdd(isArr ? null : k, v, depth + 1, id, tree, status);
+                      }
+                 }
+            }
+            
+            function recursiveAddChildren(val, depth, pid, tree, status) {
+                 const isArr = Array.isArray(val);
+                 for (const [k, v] of Object.entries(val)) {
+                      recursiveAdd(isArr ? null : k, v, depth, pid, tree, status);
+                 }
+            }
+
+            // ... (recomputeVisibleRows logic needs to handle separate trees)
+             function recomputeVisibleRows() {
+                 // Single mode
+                 visibleRows = filterTree(flatTree, searchQuery);
+             }
+             
+             function recomputeVisibleRowsDiff() {
+                 leftVisibleRows = filterTree(leftFlatTree, searchQuery);
+                 rightVisibleRows = filterTree(rightFlatTree, searchQuery);
+             }
+             
+             function filterTree(tree, query) {
+                 if (!query) {
+                      // Expand/Collapse logic
+                      const visible = [];
+                      let i = 0;
+                      while(i < tree.length) {
+                          const node = tree[i];
+                          visible.push(node);
+                          if(node.hasChildren && !node.expanded) {
+                               let j = i + 1;
+                               while(j < tree.length && tree[j].depth > node.depth) j++;
+                               i = j;
+                          } else i++;
+                      }
+                      return visible;
+                 } else {
+                     const q = query.toLowerCase();
+                     return tree.filter(n => (n.key && String(n.key).toLowerCase().includes(q)) || (n.value && String(n.value).toLowerCase().includes(q)));
+                 }
+             }
+
+            function postUpdate() {
+                 self.postMessage({ 
+                    type: 'COMPLETE', 
+                    payload: { totalNodes: visibleRows.length, mode: 'single' } 
+                });
+                self.postMessage({ type: 'ROWS_RESULT', payload: { rows: visibleRows.slice(0, 100), startIndex: 0 } });
+            }
+
+            function postUpdateDiff() {
+                self.postMessage({
+                    type: 'DIFF_COMPLETE',
+                    payload: { 
+                        leftTotal: leftVisibleRows.length, 
+                        rightTotal: rightVisibleRows.length 
+                    }
+                });
+                self.postMessage({ type: 'LEFT_ROWS', payload: { rows: leftVisibleRows.slice(0, 100), startIndex: 0 } });
+                self.postMessage({ type: 'RIGHT_ROWS', payload: { rows: rightVisibleRows.slice(0, 100), startIndex: 0 } });
+            }
+
+            self.onmessage = async function(e) {
+                const { type, payload } = e.data;
+                
+                if (type === 'PARSE') {
+                    try {
+                        const data = JSON.parse(payload);
+                        processData(data);
+                    } catch (err) {
+                        self.postMessage({ type: 'ERROR', payload: err.message });
+                    }
+                }
+                else if (type === 'PARSE_LEFT') {
+                    try { leftData = JSON.parse(payload); checkDiffReady(); } catch(e) { self.postMessage({type:'ERROR', payload: e.message}); }
+                }
+                else if (type === 'PARSE_RIGHT') {
+                    try { rightData = JSON.parse(payload); checkDiffReady(); } catch(e) { self.postMessage({type:'ERROR', payload: e.message}); }
+                }
+                
+                else if (type === 'GET_ROWS') {
+                    const { start, end } = payload;
+                    // Single Mode
+                    const rows = visibleRows.slice(start, end);
+                    const safeRows = rows.map(r => {
+                        const { chartData, ...rest } = r;
+                        return { ...rest, isChartable: r.isChartable };
+                    });
+                    self.postMessage({ type: 'ROWS_RESULT', payload: { rows: safeRows, startIndex: start } });
+                }
+                else if (type === 'GET_LEFT_ROWS') {
+                    const { start, end } = payload;
+                    const rows = leftVisibleRows.slice(start, end);
+                    const safeRows = rows.map(r => {
+                        const { chartData, ...rest } = r;
+                        return { ...rest, isChartable: r.isChartable };
+                    });
+                    self.postMessage({ type: 'LEFT_ROWS', payload: { rows: safeRows, startIndex: start } });
+                }
+                 else if (type === 'GET_RIGHT_ROWS') {
+                    const { start, end } = payload;
+                    const rows = rightVisibleRows.slice(start, end);
+                    const safeRows = rows.map(r => {
+                        const { chartData, ...rest } = r;
+                        return { ...rest, isChartable: r.isChartable };
+                    });
+                    self.postMessage({ type: 'RIGHT_ROWS', payload: { rows: safeRows, startIndex: start } });
+                }
+                
+                else if (type === 'TOGGLE') {
+                     const { id, side } = payload;
+                     if (mode === 'single') {
+                         if (searchQuery) return;
+                         toggleNode(flatTree, id);
+                         recomputeVisibleRows();
+                         postUpdate();
+                     } else {
+                         if (searchQuery) return;
+                         if (side === 'left') toggleNode(leftFlatTree, id);
+                         else if (side === 'right') toggleNode(rightFlatTree, id);
+                         recomputeVisibleRowsDiff();
+                         postUpdateDiff(); 
+                     }
+                }
+                else if (type === 'EXPAND_ALL') {
+                     if (searchQuery) return;
+                     if (mode === 'single') {
+                         for (let i = 0; i < flatTree.length; i++) flatTree[i].hasChildren ? flatTree[i].expanded = true : null;
+                         recomputeVisibleRows();
+                         postUpdate();
+                     } else {
+                         for (let i = 0; i < leftFlatTree.length; i++) leftFlatTree[i].hasChildren ? leftFlatTree[i].expanded = true : null;
+                         for (let i = 0; i < rightFlatTree.length; i++) rightFlatTree[i].hasChildren ? rightFlatTree[i].expanded = true : null;
+                         recomputeVisibleRowsDiff();
+                         postUpdateDiff();
+                     }
+                }
+                else if (type === 'COLLAPSE_ALL') {
+                     if (searchQuery) return;
+                     if (mode === 'single') {
+                         for (let i = 0; i < flatTree.length; i++) {
+                             if (flatTree[i].hasChildren) flatTree[i].expanded = (flatTree[i].depth === 0);
+                         }
+                         recomputeVisibleRows();
+                         postUpdate();
+                     } else {
+                         for (let i = 0; i < leftFlatTree.length; i++) {
+                             if (leftFlatTree[i].hasChildren) leftFlatTree[i].expanded = (leftFlatTree[i].depth === 0);
+                         }
+                         for (let i = 0; i < rightFlatTree.length; i++) {
+                             if (rightFlatTree[i].hasChildren) rightFlatTree[i].expanded = (rightFlatTree[i].depth === 0);
+                         }
+                         recomputeVisibleRowsDiff();
+                         postUpdateDiff();
+                     }
+                }
+                else if (type === 'SEARCH') {
+                    searchQuery = payload;
+                    if (mode === 'single') {
+                        recomputeVisibleRows();
+                        postUpdate();
+                    } else {
+                        recomputeVisibleRowsDiff();
+                        postUpdateDiff();
+                    }
+                }
+                else if (type === 'GET_PATH') {
+                    const { id, side } = payload;
+                    let targetTree = flatTree;
+                    if (mode === 'diff' && side === 'left') targetTree = leftFlatTree;
+                    else if (mode === 'diff' && side === 'right') targetTree = rightFlatTree;
+
+                    const nodeIndex = id - 1;
+                    let curr = targetTree[nodeIndex];
+                    if (!curr) return;
+                    let pathParts = [];
+                    while (curr && curr.depth > 0) {
+                        const parent = targetTree[curr.parentID - 1];
+                        if (parent) {
+                            if (parent.type === 'array') pathParts.unshift('[' + curr.key + ']');
+                            else pathParts.unshift(curr.key);
+                            curr = parent;
+                        } else break;
+                    }
+                    let fullPath = '';
+                    pathParts.forEach((part) => {
+                         if (part.startsWith('[')) fullPath += part;
+                         else {
+                             if (fullPath.length > 0) fullPath += '.';
+                             fullPath += part;
+                         }
+                    });
+                    self.postMessage({ type: 'PATH_RESULT', payload: { path: fullPath } });
+                }
+                else if (type === 'EXPORT') {
+                       try {
+                           let exportRows = visibleRows;
+                           if (mode === 'diff') {
+                               // For diff mode export, we might want to export left, right, or a combined view.
+                               // For simplicity, let's export the left side for now.
+                               exportRows = leftVisibleRows;
+                           }
+                           const lines = exportRows.map(node => {
+                               const indent = '  '.repeat(node.depth);
+                               let val = node.value;
+                               if (node.type === 'string') val = \`"\\${val}"\`;
+                               const k = node.key ? \`"\\${node.key}": \` : '';
+                               return \`\\${indent}\\${k}\\${val} \`;
+                           });
+                           const blobStr = lines.join('\\n');
+                           self.postMessage({ type: 'EXPORT_RESULT', payload: { data: blobStr } });
+                       } catch(e) {
+                           self.postMessage({ type: 'ERROR', payload: "Export failed: " + e.message });
+                       }
+                }
+                else if (type === 'GENERATE_SAMPLE') {
+                   const size = payload.size || 50000;
+                   const sample = [];
+                   for(let i=0; i<size; i++) {
+                       sample.push({
+                           index: i,
+                           guid: Math.random().toString(36).substring(7),
+                           isActive: Math.random() > 0.5,
+                           balance: (Math.random() * 10000).toFixed(2),
+                           picture: "http://placehold.it/32x32",
+                           age: Math.floor(Math.random() * 100),
+                           name: "Test User " + i,
+                           history: [10, 20, 15, 30, 25, 40] // Add Chartable data
+                       });
+                   }
+                   processData(sample);
+                }
+                else if (type === 'GET_CHART_DATA') {
+                    const { id, side } = payload;
+                    let targetTree = flatTree;
+                    if (mode === 'diff' && side === 'left') targetTree = leftFlatTree;
+                    else if (mode === 'diff' && side === 'right') targetTree = rightFlatTree;
+
+                    const nodeIndex = id - 1;
+                    const node = targetTree[nodeIndex];
+                    if (node && node.isChartable && node.chartData) {
+                         self.postMessage({ 
+                             type: 'CHART_DATA_RESULT', 
+                             payload: { 
+                                 data: node.chartData, 
+                                 label: node.key || 'Data' 
+                             } 
+                         });
+                    }
+                }
+                else if (type === 'EXECUTE_JQ') {
+                    const { query } = payload;
+                    
+                    if (!rootData && !leftData) {
+                        self.postMessage({ type: 'JQ_RESULT', payload: { result: "No data loaded." } });
+                        return;
+                    }
+                    
+                    try {
+                        if (typeof jq === 'undefined') {
+                             try {
+                                 importScripts('https://cdn.jsdelivr.net/npm/jq-web@0.4.5/jq.min.js');
+                             } catch(e) {
+                                 if (self.loadJqFallback) {
+                                     await self.loadJqFallback();
+                                 } else {
+                                     throw new Error("Could not load jq library. " + e.message);
+                                 }
+                             }
+                        }
+                        
+                        if (typeof jq === 'undefined' || !jq.json) throw new Error("jq library not found");
+                        
+                        const targetData = mode === 'single' ? rootData : leftData; // JQ operates on the primary (left) data
+                        const result = await jq.json(targetData, query);
+                        let output = "";
+                        if (typeof result === 'object') output = JSON.stringify(result, null, 2);
+                        else output = String(result);
+                        
+                        self.postMessage({ type: 'JQ_RESULT', payload: { result: output } });
+                        
+                    } catch(err) {
+                        self.postMessage({ type: 'JQ_RESULT', payload: { result: "Error: " + err.message } });
+                    }
+                }
+            };
+            
+            function checkDiffReady() {
+                if (leftData && rightData) {
+                    processDiff(leftData, rightData);
+                }
+            }
+            
+            function toggleNode(tree, id) {
+                 const idx = id - 1;
+                 if (tree[idx]) tree[idx].expanded = !tree[idx].expanded;
+            }
+        `;
+
+        // Worker Initialization with Fallback
+        let worker;
+
+        function initFallbackWorker() {
+            if (worker && typeof worker.terminate === 'function') {
+                try { worker.terminate(); } catch (e) { }
+            }
+            console.log("Initializing Fallback Worker (Main Thread)");
+            const mockSelf = {
+                postMessage: (data) => {
+                    // Use a timeout to simulate async worker behavior and ensure 'worker' is defined
+                    setTimeout(() => {
+                        if (worker && worker.onmessage) worker.onmessage({ data });
+                    }, 0);
+                },
+                onmessage: null,
+                loadJqFallback: async () => {
+                    if (window.jq) { mockSelf.jq = window.jq; return; }
+                    const s = document.createElement('script');
+                    s.src = 'https://cdn.jsdelivr.net/npm/jq-web@0.4.5/jq.min.js';
+                    await new Promise((res, rej) => {
+                        s.onload = res;
+                        s.onerror = rej;
+                        document.head.appendChild(s);
+                    });
+                    mockSelf.jq = window.jq;
+                }
+            };
+            try {
+                // Execute the worker code in the main thread context using the mock scope
+                const fallbackFn = new Function('self', workerCode);
+                fallbackFn(mockSelf);
+
+                // Assign the fallback worker object
+                worker = {
+                    postMessage: (data) => {
+                        if (mockSelf.onmessage) {
+                            setTimeout(() => { mockSelf.onmessage({ data }); }, 0);
+                        }
+                    },
+                    onmessage: null,
+                    terminate: () => { console.log('Fallback worker terminated'); }
+                };
+                console.log("Fallback Worker Initialized Successfully");
+            } catch (err) {
+                console.error("Critical: Fallback worker init failed", err);
+                alert("Could not initialize parser. Browser functionality may be restricted.\n" + err.message);
+            }
+        }
+
+        try {
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            const workerUrl = URL.createObjectURL(blob);
+            worker = new Worker(workerUrl);
+
+            worker.onerror = function (e) {
+                console.warn("Worker error detected, switching to fallback mode:", e);
+                e.preventDefault(); // Prevent error from bubbling if possible
+                initFallbackWorker();
+            };
+        } catch (e) {
+            console.warn("Worker creation failed (likely due to file:// restriction), using fallback:", e);
+            initFallbackWorker();
+        }
+
+        // --- DOM Elements ---
+        const dropZone = document.getElementById('drop-zone');
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('file-input');
+        const listContainer = document.getElementById('list-container');
+        const fileNameDisplay = document.getElementById('file-name');
+        const nodeCountDisplay = document.getElementById('node-count');
+        const loader = document.getElementById('loader');
+        const loaderText = document.getElementById('loader-text');
+        const loadSampleBtn = document.getElementById('load-sample-btn');
+        const searchInput = document.getElementById('search-input');
+        const densityBtn = document.getElementById('density-btn');
+        const themeBtn = document.getElementById('theme-btn');
+        const expandAllBtn = document.getElementById('expand-all-btn');
+        const collapseAllBtn = document.getElementById('collapse-all-btn');
+        const exportBtn = document.getElementById('export-btn');
+        const customToast = document.getElementById('custom-toast');
+
+        // JQ Elements
+        const consoleBtn = document.getElementById('console-btn');
+        const consoleDrawer = document.getElementById('console-drawer');
+        const closeConsoleBtn = document.getElementById('close-console-btn');
+        const jqInput = document.getElementById('jq-input');
+        const runJqBtn = document.getElementById('run-jq-btn');
+        const jqOutput = document.getElementById('jq-output');
+
+        // Chart Elements
+        const chartModal = document.getElementById('chart-modal');
+        const closeChartBtn = document.getElementById('close-chart-btn');
+        const chartCanvas = document.getElementById('chart-canvas');
+        let chartInstance = null;
+
+        // --- State ---
+        let totalNodes = 0;
+        let ROW_HEIGHT = 24;
+        const BUFFER_SIZE = 20;
+        let activeRowIndex = -1;
+
+        // --- Virtual Scroll Setup ---
+        let spacer = document.createElement('div');
+        let contentLayer = document.createElement('div');
+        listContainer.style.position = 'relative';
+        contentLayer.style.position = 'absolute';
+        contentLayer.style.top = '0';
+        contentLayer.style.left = '0';
+        contentLayer.style.right = '0';
+        listContainer.appendChild(spacer);
+        listContainer.appendChild(contentLayer);
+
+        // --- Core Logic ---
+
+        function setupWorkerListener() {
+            if (!worker) return;
+            worker.onmessage = function (e) {
+                const { type, payload } = e.data;
+
+                if (type === 'COMPLETE') {
+                    totalNodes = payload.totalNodes;
+                    loaderText.textContent = 'Done!';
+                    setTimeout(hideLoader, 500);
+                    nodeCountDisplay.textContent = `${totalNodes.toLocaleString()} nodes`;
+                    nodeCountDisplay.classList.remove('hidden');
+                    dropZone.classList.add('hidden');
+                    dropZone.classList.remove('opacity-100');
+                    listContainer.classList.remove('hidden');
+                    searchInput.disabled = false;
+                    expandAllBtn.disabled = false;
+                    collapseAllBtn.disabled = false;
+                    exportBtn.disabled = false;
+                    activeRowIndex = -1;
+                    updateSpacer();
+                    handleScroll();
+                }
+                else if (type === 'DIFF_COMPLETE') {
+                    // payload: { leftTotal, rightTotal }
+                    hideLoader();
+
+                    leftTotalNodes = payload.leftTotal;
+                    rightTotalNodes = payload.rightTotal;
+
+                    leftSpacer.style.height = `${leftTotalNodes * ROW_HEIGHT}px`;
+                    rightSpacer.style.height = `${rightTotalNodes * ROW_HEIGHT}px`;
+
+                    // Hide individual drop overlays if data present
+                    if (leftTotalNodes > 0) document.getElementById('left-drop').classList.add('hidden');
+                    if (rightTotalNodes > 0) document.getElementById('right-drop').classList.add('hidden');
+
+                    // Trigger scroll to render initial
+                    handleScrollDiff('left');
+                }
+                else if (type === 'LEFT_ROWS') {
+                    renderRowsDiff(payload.rows, leftContent, payload.startIndex);
+                }
+                else if (type === 'RIGHT_ROWS') {
+                    renderRowsDiff(payload.rows, rightContent, payload.startIndex);
+                }
+                else if (type === 'ROWS_RESULT') {
+                    renderRows(payload.rows, payload.startIndex);
+                }
+                else if (type === 'PATH_RESULT') {
+                    navigator.clipboard.writeText(payload.path).then(() => {
+                        customToast.textContent = 'Copied: ' + payload.path;
+                        customToast.classList.remove('hidden');
+                        setTimeout(() => customToast.classList.add('hidden'), 2000);
+                    });
+                }
+                else if (type === 'EXPORT_RESULT') {
+                    hideLoader();
+                    const blob = new Blob([payload.data], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'json-titan-export.txt';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+                else if (type === 'CHART_DATA_RESULT') {
+                    const { data, label } = payload;
+                    showChartModal(data, label);
+                }
+                else if (type === 'JQ_RESULT') {
+                    jqOutput.innerHTML = syntaxHighlightJSON(payload.result);
+                }
+                else if (type === 'ERROR') {
+                    console.error("Worker Error:", payload);
+                    alert('Error: ' + payload);
+                    hideLoader();
+                }
+            };
+        }
+        setupWorkerListener();
+
+        // --- Rendering ---
+        function updateSpacer() {
+            spacer.style.height = `${totalNodes * ROW_HEIGHT}px`;
+        }
+
+        function handleScroll() {
+            if (totalNodes === 0) return;
+            const scrollTop = listContainer.scrollTop;
+            const viewportHeight = listContainer.clientHeight;
+            const startIndex = Math.floor(scrollTop / ROW_HEIGHT);
+            const endIndex = Math.min(totalNodes, Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT));
+            const bufferedStart = Math.max(0, startIndex - BUFFER_SIZE);
+            const bufferedEnd = Math.min(totalNodes, endIndex + BUFFER_SIZE);
+
+            worker.postMessage({
+                type: 'GET_ROWS',
+                payload: { start: bufferedStart, end: bufferedEnd }
+            });
+        }
+
+        // Throttled Scroll
+        let ticking = false;
+        listContainer.addEventListener('scroll', () => {
+            if (!ticking) {
+                window.requestAnimationFrame(() => { handleScroll(); ticking = false; });
+                ticking = true;
+            }
+        });
+
+        function renderRows(rows, startIndex) {
+            contentLayer.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+
+            rows.forEach((node, i) => {
+                const el = document.createElement('div');
+                const absoluteIndex = startIndex + i;
+                const topPos = absoluteIndex * ROW_HEIGHT;
+
+                el.style.position = 'absolute';
+                el.style.top = `${topPos}px`;
+                el.style.height = `${ROW_HEIGHT}px`;
+                el.style.width = '100%';
+
+                let classes = 'whitespace-pre font-mono text-sm leading-6 row-hover cursor-default flex items-center px-2 border-b group';
+                if (absoluteIndex === activeRowIndex) classes += ' active-row';
+                el.className = classes;
+                el.style.borderColor = 'var(--border-color)';
+
+                // Click to Select
+                el.addEventListener('click', () => {
+                    activeRowIndex = absoluteIndex;
+                    renderRows(rows, startIndex); // Re-render local batch to update active state
+                });
+
+                // Helper Components
+                const indent = `<span style="width: ${node.depth * 20}px; display: inline-block;"></span>`;
+
+                // Toggle Arrow
+                const arrowStyle = 'color: var(--text-secondary); cursor: pointer; display: inline-block; width: 1rem; text-align: center; margin-right: 0.25rem; user-select: none;';
+                const arrow = node.hasChildren
+                    ? `<span style="${arrowStyle}" onmousedown="event.stopPropagation(); toggleNode(${node.id})">${node.expanded ? '▼' : '▶'}</span>`
+                    : `<span style="display: inline-block; width: 1rem; margin-right: 0.25rem;"></span>`;
+
+                // Chart Icon
+                let chartIcon = '';
+                if (node.isChartable) {
+                    chartIcon = `<span title="Visualize Array" class="cursor-pointer ml-2 text-purple-400 opacity-60 hover:opacity-100 hover:scale-110 transition-all font-sans" onmousedown="event.stopPropagation(); openChart(${node.id})">📊</span>`;
+                }
+
+                // Values
+                let valueHtml = '';
+                if (node.type === 'string') valueHtml = `<span class="json-string">"${node.value}"</span>`;
+                else if (node.type === 'number') valueHtml = `<span class="json-number">${node.value}</span>`;
+                else if (node.type === 'boolean') valueHtml = `<span class="json-boolean">${node.value}</span>`;
+                else if (node.type === 'null') valueHtml = `<span class="json-null">null</span>`;
+                else valueHtml = `<span class="font-bold" style="color: var(--text-secondary);">${node.value || ''}</span>`;
+
+                const keyHtml = node.key ? `<span class="json-key">"${node.key}"</span>: ` : '';
+                const lineNumStyle = 'color: var(--text-secondary); user-select: none; width: 2.5rem; text-align: right; margin-right: 1rem; border-right: 1px solid var(--border-color); padding-right: 0.5rem;';
+                const lineNum = `<span style="${lineNumStyle}">${node.id}</span>`;
+                const copyBtn = `<button class="ml-auto opacity-0 group-hover:opacity-100 transition-opacity px-2" style="color: var(--text-secondary);" onclick="copyPath(${node.id})">📋</button>`;
+
+                el.innerHTML = `${lineNum}${indent}${arrow}${keyHtml}${valueHtml}${chartIcon}${copyBtn}`;
+                fragment.appendChild(el);
+            });
+            contentLayer.appendChild(fragment);
+        }
+
+        // --- Interaction Handlers ---
+        window.toggleNode = function (id) { worker.postMessage({ type: 'TOGGLE', payload: { id } }); };
+        window.copyPath = function (id) { worker.postMessage({ type: 'GET_PATH', payload: { id } }); };
+        window.openChart = function (id) { worker.postMessage({ type: 'GET_CHART_DATA', payload: { id } }); };
+
+        // Keyboard Nav
+        document.addEventListener('keydown', (e) => {
+            if (totalNodes === 0 || !dropZone.classList.contains('hidden')) return;
+            if (document.activeElement === searchInput || document.activeElement === jqInput) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const prev = activeRowIndex;
+                activeRowIndex = Math.min(totalNodes - 1, activeRowIndex + 1);
+                updateActiveRowVisuals(prev, activeRowIndex);
+                scrollToActive();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const prev = activeRowIndex;
+                activeRowIndex = Math.max(0, activeRowIndex - 1);
+                updateActiveRowVisuals(prev, activeRowIndex);
+                scrollToActive();
+            } else if (e.key === 'ArrowRight') {
+                if (activeRowIndex !== -1) worker.postMessage({ type: 'TOGGLE', payload: { id: activeRowIndex + 1 } });
+            } else if (e.key === 'ArrowLeft') {
+                if (activeRowIndex !== -1) worker.postMessage({ type: 'TOGGLE', payload: { id: activeRowIndex + 1 } });
+            }
+        });
+
+        function scrollToActive() {
+            const top = activeRowIndex * ROW_HEIGHT;
+            if (top < listContainer.scrollTop) {
+                listContainer.scrollTop = top;
+            } else if (top + ROW_HEIGHT > listContainer.scrollTop + listContainer.clientHeight) {
+                listContainer.scrollTop = top + ROW_HEIGHT - listContainer.clientHeight;
+            }
+            handleScroll();
+        }
+
+        function updateActiveRowVisuals(prev, curr) {
+            // Find in DOM 
+            // We use attribute selectors or iterate? 
+            // Since we don't have ID on div easily accessible without parsing HTML, 
+            // we rely on 'contentLayer.children'.
+            // But children are relative to startIndex.
+            // We need to know startIndex.
+            // We can infer it from the first child's top position?
+            const firstChild = contentLayer.firstElementChild;
+            if (!firstChild) return;
+            const startTop = parseInt(firstChild.style.top);
+            const startIndex = startTop / ROW_HEIGHT;
+
+            const relativePrev = prev - startIndex;
+            const relativeCurr = curr - startIndex;
+
+            if (contentLayer.children[relativePrev]) contentLayer.children[relativePrev].classList.remove('active-row');
+            if (contentLayer.children[relativeCurr]) contentLayer.children[relativeCurr].classList.add('active-row');
+        }
+
+        // --- Chart Logic ---
+        async function showChartModal(data, label) {
+            chartModal.classList.remove('hidden');
+            if (!window.Chart) await loadScript('https://cdn.jsdelivr.net/npm/chart.js');
+            if (chartInstance) chartInstance.destroy();
+
+            const ctx = chartCanvas.getContext('2d');
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(62, 130, 247, 0.8)');
+            gradient.addColorStop(1, 'rgba(62, 130, 247, 0.1)');
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map((_, i) => i + 1),
+                    datasets: [{
+                        label: label,
+                        data: data,
+                        backgroundColor: gradient,
+                        borderColor: '#3e82f7',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#fff' } } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#333' }, ticks: { color: '#aaa' } },
+                        x: { grid: { display: false }, ticks: { color: '#aaa' } }
+                    }
+                }
+            });
+        }
+
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.onload = resolve;
+                s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+
+        function syntaxHighlightJSON(json) {
+            if (typeof json !== 'string') return json;
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'text-green-400'; // number/default
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'text-purple-400'; // key
+                    } else {
+                        cls = 'text-green-400'; // string
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'text-blue-400'; // boolean
+                } else if (/null/.test(match)) {
+                    cls = 'text-gray-500'; // null
+                } else if (/^-?\d/.test(match)) {
+                    cls = 'text-orange-400'; // number
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+
+        // --- Event Binding ---
+        // Header
+        themeBtn.addEventListener('click', () => document.body.classList.toggle('light-mode'));
+        densityBtn.addEventListener('click', () => {
+            ROW_HEIGHT = (ROW_HEIGHT === 24) ? 20 : 24;
+            densityBtn.textContent = (ROW_HEIGHT === 24) ? 'Compact' : 'Comfortable';
+            updateSpacer(); handleScroll();
+        });
+        expandAllBtn.addEventListener('click', () => { showLoader('Expanding...'); worker.postMessage({ type: 'EXPAND_ALL' }); });
+        collapseAllBtn.addEventListener('click', () => { showLoader('Collapsing...'); worker.postMessage({ type: 'COLLAPSE_ALL' }); });
+        exportBtn.addEventListener('click', () => { showLoader('Exporting...'); worker.postMessage({ type: 'EXPORT' }); });
+
+        // Search
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                showLoader('Searching...');
+                worker.postMessage({ type: 'SEARCH', payload: e.target.value });
+                listContainer.scrollTop = 0;
+            }, 300);
+        });
+
+        // File
+        dropArea.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+        window.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.remove('hidden'); });
+        dropZone.addEventListener('dragleave', (e) => { /* optional */ });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+
+        function handleFile(file) {
+            fileNameDisplay.textContent = file.name;
+            fileNameDisplay.classList.remove('hidden');
+            showLoader('Reading file...');
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                showLoader('Parsing...');
+                if (worker) worker.postMessage({ type: 'PARSE', payload: e.target.result });
+            };
+            reader.readAsText(file);
+        }
+
+        loadSampleBtn.addEventListener('click', () => {
+            showLoader('Generating Sample...');
+            worker.postMessage({ type: 'GENERATE_SAMPLE', payload: { size: 10000 } });
+        });
+
+        // JQ
+        consoleBtn.addEventListener('click', () => consoleDrawer.classList.remove('translate-y-full'));
+        closeConsoleBtn.addEventListener('click', () => consoleDrawer.classList.add('translate-y-full'));
+        runJqBtn.addEventListener('click', () => {
+            const query = jqInput.value;
+            if (!query) return;
+            jqOutput.textContent = "Running...";
+            worker.postMessage({ type: 'EXECUTE_JQ', payload: { query } });
+        });
+
+        // Chart
+        closeChartBtn.addEventListener('click', () => chartModal.classList.add('hidden'));
+        chartModal.addEventListener('click', (e) => { if (e.target === chartModal) chartModal.classList.add('hidden'); });
+
+        // Diff Elements
+        const diffModeBtn = document.getElementById('diff-mode-btn');
+        const diffContainer = document.getElementById('diff-container');
+        const contentCard = document.getElementById('content-card');
+        const leftInput = document.getElementById('left-input');
+        const rightInput = document.getElementById('right-input');
+        const leftDrop = document.getElementById('left-drop');
+        const rightDrop = document.getElementById('right-drop');
+        const leftList = document.getElementById('left-list-container');
+        const rightList = document.getElementById('right-list-container');
+        const leftFileName = document.getElementById('left-file-name');
+        const rightFileName = document.getElementById('right-file-name');
+
+        let isDiffMode = false;
+        let leftTotalNodes = 0;
+        let rightTotalNodes = 0;
+
+        // Diff Scrollers
+        let leftSpacer = document.createElement('div');
+        let leftContent = document.createElement('div');
+        let rightSpacer = document.createElement('div');
+        let rightContent = document.createElement('div');
+
+        // Init Diff Scrollers
+        [leftList, rightList].forEach((list, i) => {
+            const spacer = i === 0 ? leftSpacer : rightSpacer;
+            const content = i === 0 ? leftContent : rightContent;
+
+            list.style.position = 'relative';
+            content.style.position = 'absolute';
+            content.style.top = '0';
+            content.style.left = '0';
+            content.style.width = '100%';
+
+            list.appendChild(spacer);
+            list.appendChild(content);
+        });
+
+        // Toggle Logic
+        diffModeBtn.addEventListener('click', () => {
+            isDiffMode = !isDiffMode;
+            if (isDiffMode) {
+                diffModeBtn.classList.add('bg-blue-600', 'text-white');
+                diffContainer.classList.remove('hidden');
+                dropZone.classList.add('hidden'); // Ensure main drop is hidden
+                listContainer.classList.add('hidden');
+            } else {
+                diffModeBtn.classList.remove('bg-blue-600', 'text-white');
+                diffContainer.classList.add('hidden');
+                if (totalNodes > 0) listContainer.classList.remove('hidden');
+                else dropZone.classList.remove('hidden');
+            }
+        });
+
+        // Diff File Handling
+        leftDrop.addEventListener('click', () => leftInput.click());
+        rightDrop.addEventListener('click', () => rightInput.click());
+
+        leftInput.addEventListener('change', (e) => handleDiffFile(e.target.files[0], 'left'));
+        rightInput.addEventListener('change', (e) => handleDiffFile(e.target.files[0], 'right'));
+
+        function handleDiffFile(file, side) {
+            if (side === 'left') leftFileName.textContent = file.name;
+            else rightFileName.textContent = file.name;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                showLoader(`Parsing ${side}...`);
+                worker.postMessage({ type: side === 'left' ? 'PARSE_LEFT' : 'PARSE_RIGHT', payload: e.target.result });
+            };
+            reader.readAsText(file);
+        }
+
+        // Sync Scrolling
+        // Simple approach: When one scrolls, set the other.
+        // To avoid infinite loops, check if positions differ significantly before setting.
+        let isSyncingLeft = false;
+        let isSyncingRight = false;
+
+        leftList.addEventListener('scroll', () => {
+            if (!isSyncingLeft) {
+                isSyncingRight = true;
+                rightList.scrollTop = leftList.scrollTop;
+                handleScrollDiff('left');
+            }
+            isSyncingLeft = false;
+        });
+
+        rightList.addEventListener('scroll', () => {
+            if (!isSyncingRight) {
+                isSyncingLeft = true;
+                leftList.scrollTop = rightList.scrollTop;
+                handleScrollDiff('right');
+            }
+            isSyncingRight = false;
+        });
+
+        function handleScrollDiff(source) {
+            // We use the scrollTop of the source to determine rows for BOTH
+            // This assumes strict alignment.
+            const target = source === 'left' ? leftList : rightList;
+            const scrollTop = target.scrollTop;
+            const viewportHeight = target.clientHeight;
+            const startIndex = Math.floor(scrollTop / ROW_HEIGHT);
+            // Use Max of totals to ensure we cover range if one list is longer (and we want to see it?)
+            // But valid rows depend on individual list length
+            const endIndex = Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT);
+
+            const start = Math.max(0, startIndex - BUFFER_SIZE);
+            const end = endIndex + BUFFER_SIZE; // Can exceed total, worker handles slice
+
+            worker.postMessage({ type: 'GET_LEFT_ROWS', payload: { start, end } });
+            worker.postMessage({ type: 'GET_RIGHT_ROWS', payload: { start, end } });
+        }
+
+        function renderRowsDiff(rows, containerLayer, startIndex) {
+            containerLayer.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+            rows.forEach((node, i) => {
+                const el = document.createElement('div');
+                const absoluteIndex = startIndex + i;
+                const topPos = absoluteIndex * ROW_HEIGHT;
+
+                el.style.position = 'absolute';
+                el.style.top = `${topPos}px`;
+                el.style.height = `${ROW_HEIGHT}px`;
+                el.style.width = '100%';
+
+                let classes = 'whitespace-pre font-mono text-sm leading-6 row-hover cursor-default flex items-center px-2 border-b group';
+
+                // Diff Colors
+                if (node.diffStatus === 'added') classes += ' bg-green-900/30 text-green-200';
+                else if (node.diffStatus === 'removed') classes += ' bg-red-900/30 text-red-200';
+                else if (node.diffStatus === 'modified') classes += ' bg-yellow-900/30 text-yellow-200';
+
+                el.className = classes;
+                el.style.borderColor = 'var(--border-color)';
+
+                // Helper Components (Simplified)
+                const indent = `<span style="width: ${node.depth * 20}px; display: inline-block;"></span>`;
+                const arrow = node.hasChildren
+                    ? `<span style="cursor: pointer; display: inline-block; width: 1rem;" onmousedown="event.stopPropagation(); window.toggleNode(${node.id}, '${containerLayer === leftContent ? 'left' : 'right'}')">${node.expanded ? '▼' : '▶'}</span>`
+                    : `<span style="display: inline-block; width: 1rem;"></span>`;
+
+                let valueHtml = '';
+                if (node.type === 'string') valueHtml = `<span class="json-string">"${node.value}"</span>`;
+                else if (node.type === 'number') valueHtml = `<span class="json-number">${node.value}</span>`;
+                else valueHtml = `<span>${node.value || ''}</span>`;
+
+                const keyHtml = node.key ? `<span class="json-key">"${node.key}"</span>: ` : '';
+
+                el.innerHTML = `${indent}${arrow}${keyHtml}${valueHtml}`;
+                fragment.appendChild(el);
+            });
+            containerLayer.appendChild(fragment);
+        }
+
+        // Updated Toggle for Diff
+        window.toggleNode = function (id, side) {
+            worker.postMessage({ type: 'TOGGLE', payload: { id, side } });
+        };
+
+        // Utils (Restored)
+        function showLoader(msg) { loader.classList.remove('hidden'); loaderText.textContent = msg; }
+        function hideLoader() { loader.classList.add('hidden'); }
+
+        // --- Init ---
+        if (!document.getElementById('custom-toast')) {
+            const t = document.createElement('div');
+            t.id = 'custom-toast';
+            t.className = 'absolute top-16 right-4 border px-4 py-2 rounded shadow-lg hidden transition-opacity z-50';
+            t.style.backgroundColor = 'var(--bg-secondary)';
+            t.style.borderColor = 'var(--json-key)';
+            t.style.color = 'var(--text-primary)';
+            document.body.appendChild(t);
+        }
+    </script>
+</body>
+
+</html>
